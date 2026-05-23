@@ -11,6 +11,14 @@ from datetime import datetime
 from dataclasses import dataclass, asdict
 from dotenv import load_dotenv
 from anthropic import Anthropic
+# PDF generation
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    _REPORTLAB_AVAILABLE = True
+except Exception:
+    _REPORTLAB_AVAILABLE = False
 
 # Load environment variables from .env (if present)
 load_dotenv()
@@ -391,6 +399,30 @@ NEXT STEPS
 Report generated using Claude AI-powered crash analysis system
 """
         return report
+
+    def generate_pdf_report(self, output_path: str) -> Optional[str]:
+        """
+        Generate a PDF file of the summary report at `output_path`.
+        Returns the output path on success, or None if ReportLab is not installed.
+        """
+        if not _REPORTLAB_AVAILABLE:
+            return None
+
+        summary_text = self.generate_summary_report()
+        doc = SimpleDocTemplate(output_path, pagesize=letter)
+        styles = getSampleStyleSheet()
+        flow = []
+
+        for line in summary_text.splitlines():
+            if not line.strip():
+                flow.append(Spacer(1, 6))
+                continue
+            para = Paragraph(line.replace(' ', '&nbsp;'), styles['Normal'])
+            flow.append(para)
+            flow.append(Spacer(1, 4))
+
+        doc.build(flow)
+        return output_path
     
     def _format_conversation(self) -> str:
         """Format conversation history for readability"""
