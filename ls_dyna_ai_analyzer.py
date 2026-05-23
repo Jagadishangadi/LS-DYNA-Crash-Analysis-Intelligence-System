@@ -14,8 +14,10 @@ from anthropic import Anthropic
 # PDF generation
 try:
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
     _REPORTLAB_AVAILABLE = True
 except Exception:
     _REPORTLAB_AVAILABLE = False
@@ -409,19 +411,60 @@ Report generated using Claude AI-powered crash analysis system
             return None
 
         summary_text = self.generate_summary_report()
-            doc = SimpleDocTemplate(output_path, pagesize=letter,
-                                    rightMargin=36, leftMargin=36,
-                                    topMargin=36, bottomMargin=36)
+
+        doc = SimpleDocTemplate(output_path, pagesize=letter,
+                                rightMargin=36, leftMargin=36,
+                                topMargin=36, bottomMargin=36)
         styles = getSampleStyleSheet()
+        normal = styles['Normal']
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'], alignment=1, spaceAfter=12)
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], alignment=1, spaceAfter=6)
+
         flow = []
 
-        for line in summary_text.splitlines():
-            if not line.strip():
-                flow.append(Spacer(1, 6))
-                continue
-            para = Paragraph(line.replace(' ', '&nbsp;'), styles['Normal'])
-            flow.append(para)
-            flow.append(Spacer(1, 4))
+        # Title page
+        flow.append(Paragraph('LS-DYNA Crash Analysis - Report', title_style))
+        flow.append(Paragraph(f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', subtitle_style))
+        flow.append(Spacer(1, 12))
+
+        # Key metrics table
+        m = self.simulation_data
+        metrics_data = [
+            ['Metric', 'Value'],
+            ['Simulation ID', m.simulation_id],
+            ['Timestamp', m.timestamp],
+            ['Peak Acceleration (resultant) [g]', f"{m.peak_acceleration_resultant:.2f}"],
+            ['HIC', f"{m.hic_value:.0f}"],
+            ['Time to peak [ms]', f"{m.time_to_peak_ms:.1f}"],
+            ['Energy Dissipated [%]', f"{m.kinetic_energy_dissipated_percent:.1f}"],
+            ['Hourglass Energy [%]', f"{m.hourglass_energy_percent:.2f}"],
+            ['Max Displacement [m]', f"{m.max_displacement:.3f}"],
+            ['Max Plastic Strain', f"{m.max_plastic_strain:.4f}"],
+            ['Element Deletions', str(m.element_deletion_count)]
+        ]
+
+        table = Table(metrics_data, colWidths=[3*inch, 3*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.black),
+        ]))
+
+        flow.append(table)
+        flow.append(Spacer(1, 12))
+
+        # Conversation / analysis log
+        flow.append(Paragraph('Analysis Conversation Log', styles['Heading2']))
+        for msg in self.conversation_history:
+            role = msg.get('role', '')
+            content = msg.get('content', '')
+            # Truncate very long assistant content for PDF readability
+            text = content if len(content) < 1000 else content[:1000] + '...'
+            flow.append(Paragraph(f'<b>{role.upper()}</b>: {text.replace("\n", "<br/>")}', normal))
+            flow.append(Spacer(1, 6))
 
         doc.build(flow)
         return output_path
