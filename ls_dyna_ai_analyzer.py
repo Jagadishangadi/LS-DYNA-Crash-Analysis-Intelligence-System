@@ -510,6 +510,16 @@ def run_example_analysis():
     print("-" * 60)
     summary = analyzer.generate_summary_report()
     print(summary)
+    # Attempt to write PDF report
+    try:
+        pdf_path = os.path.join(os.path.dirname(__file__), "analysis_report.pdf")
+        pdf_result = analyzer.generate_pdf_report(pdf_path)
+        if pdf_result:
+            print(f"PDF report written to: {pdf_result}")
+        else:
+            print("PDF generation skipped: ReportLab not available.")
+    except Exception as e:
+        print(f"PDF generation failed: {e}")
 
 
 if __name__ == "__main__":
