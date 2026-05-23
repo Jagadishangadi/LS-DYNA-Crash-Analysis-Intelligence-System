@@ -15,8 +15,12 @@ from anthropic import Anthropic
 # Load environment variables from .env (if present)
 load_dotenv()
 
-# Initialize Anthropic client
-client = Anthropic()
+# Initialize Anthropic client using API key from environment (if present)
+_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+if _anthropic_api_key:
+    client = Anthropic(api_key=_anthropic_api_key)
+else:
+    client = None
 MODEL = "claude-opus-4-6"
 
 @dataclass
@@ -301,7 +305,16 @@ Provide specific reasoning, not just conclusions.
             "role": "user",
             "content": user_message
         })
-        
+        # If Anthropic client is not configured, return a clear error message
+        if client is None:
+            error_msg = (
+                "Error: Anthropic API key is not configured.\n"
+                "Set the environment variable ANTHROPIC_API_KEY or create a .env file with that key.\n"
+                "See .env.example for the variable name. The analysis requiring Claude will be skipped."
+            )
+            self.conversation_history.append({"role": "assistant", "content": error_msg})
+            return error_msg
+
         response = client.messages.create(
             model=MODEL,
             max_tokens=2000,
@@ -318,13 +331,13 @@ Use engineering terminology confidently. Provide specific numbers and metrics.
 When making recommendations, always explain the rationale and expected impact.""",
             messages=self.conversation_history
         )
-        
+
         assistant_message = response.content[0].text
         self.conversation_history.append({
             "role": "assistant",
             "content": assistant_message
         })
-        
+
         return assistant_message
     
     def generate_summary_report(self) -> str:
