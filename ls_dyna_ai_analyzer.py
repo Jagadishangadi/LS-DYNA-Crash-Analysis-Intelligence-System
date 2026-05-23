@@ -9,7 +9,11 @@ import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass, asdict
+from dotenv import load_dotenv
 from anthropic import Anthropic
+
+# Load environment variables from .env (if present)
+load_dotenv()
 
 # Initialize Anthropic client
 client = Anthropic()
