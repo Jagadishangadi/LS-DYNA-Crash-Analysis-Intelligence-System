@@ -409,7 +409,9 @@ Report generated using Claude AI-powered crash analysis system
             return None
 
         summary_text = self.generate_summary_report()
-        doc = SimpleDocTemplate(output_path, pagesize=letter)
+            doc = SimpleDocTemplate(output_path, pagesize=letter,
+                                    rightMargin=36, leftMargin=36,
+                                    topMargin=36, bottomMargin=36)
         styles = getSampleStyleSheet()
         flow = []
 
